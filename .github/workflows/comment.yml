@@ -12,7 +12,7 @@ jobs:
       - name: View context attributes
         uses: actions/github-script@v5
         with:
-          script: console.log(context.payload.comment)
+          script: console.log(context.payload)
 
       - name: Verify environment
         id: verify-environment
@@ -21,7 +21,7 @@ jobs:
           script: |
             const allowed_environment_list = ['X', 'Y', 'Z']
 
-            const comment = context.comment['body'].split(' ')
+            const comment = context.payload.comment.body.split(' ')
 
             if (comment.length === 2 && allowed_environment_list.includes(comment[1])) {
                 return comment[1]
