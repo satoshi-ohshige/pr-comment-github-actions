@@ -3,6 +3,7 @@ on:
     types: [created, edited]
 
 env:
+  DEFAULT_BRANCH: main
   ALLOWED_ENVIRONMENT_LIST: X,Y,Z
 
 jobs:
@@ -62,8 +63,38 @@ jobs:
               base: pull_request.data.base.ref
             }
 
+      - name: Verify Z & Notify if invalid
+        id: verify-z
+        if: steps.get-environment.outputs.target_environment == 'Z'
+        env:
+          BASE_BRANCH: ${{ fromJson(steps.target-branch.outputs.result).base }}
+          PR_STATE: ${{ fromJson(steps.target-branch.outputs.result).state }}
+        uses: actions/github-script@v5
+        with:
+          script: |
+            const { DEFAULT_BRANCH, BASE_BRANCH, PR_STATE } = process.env
+
+            console.log(PR_STATE)
+
+            if (DEFAULT_BRANCH == BASE_BRANCH && PR_STATE == 'merged') {
+                return true
+            }
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: "failed :thinking: \nマージ先ブランチが `" + DEFAULT_BRANCH + "` であり、マージ済みでないといけません"
+            })
+
+            return false
+
+      - name: Stop if invalid
+        if: steps.verify-z.outputs.result == 'false'
+        run: exit 1
+
       - name: Run
-        run: echo "${{ fromJSON(steps.target-branch.outputs.result).url }}"
+        run: echo "Run!"
 
       - name: Finished
         uses: actions/github-script@v5
