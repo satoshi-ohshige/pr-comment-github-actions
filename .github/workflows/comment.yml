@@ -9,7 +9,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/github-script@v5
+      - name: Fetch target branch
+        id: target-branch
+        uses: actions/github-script@v5
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
@@ -18,4 +20,27 @@ jobs:
               repo: context.repo.repo,
               pull_number: context.issue.number
             })
-            console.log(pull_request.data)
+            return {
+              url: pull_request.data.html_url,
+              state: pull_request.data.state,
+              title: pull_request.data.title,
+              user: pull_request.data.user.login,
+              branch: pull_request.data.head.ref,
+              sha: pull_request.data.head.sha,
+              base: pull_request.data.base.ref
+            }
+
+      - name: Run
+        run: echo "${{ fromJSON(steps.target-branch.outputs.result).url }}"
+
+      - name: Finished
+        uses: actions/github-script@v5
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: "done :rocket: \nsha:${{fromJSON(steps.target-branch.outputs.result).sha}}"
+            })
