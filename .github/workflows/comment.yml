@@ -9,6 +9,32 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Verify environment
+        id: verify-environment
+        uses: actions/github-script@v5
+        with:
+          script: |
+            const allowed_environment_list = ['X', 'Y', 'Z']
+
+            const comment = github.event.comment.body.split(' ')
+
+            if (comment.length === 2 && allowed_environment_list.includes(comment[1])) {
+                return comment[1]
+            }
+
+            const allowed_environment = allowed_environment_list.join(' or ')
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: "failed :thinking: \nusage:`/comment [allowed_environment]`"
+            })
+            return false
+
+      - name: Stop if invalid
+        if: steps.verify-environment.outputs.result === 'false'
+        run: exit 1
+
       - name: Fetch target branch
         id: target-branch
         uses: actions/github-script@v5
