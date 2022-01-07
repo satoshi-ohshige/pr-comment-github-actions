@@ -24,7 +24,7 @@ jobs:
           script: |
             const { ALLOWED_ENVIRONMENT_LIST, TARGET_ENVIRONMENT } = process.env
 
-            if (ALLOWED_ENVIRONMENT_LIST.split(',').includes(TARGET_ENVIRONMENT) {
+            if (ALLOWED_ENVIRONMENT_LIST.split(',').includes(TARGET_ENVIRONMENT)) {
                 return true
             }
 
