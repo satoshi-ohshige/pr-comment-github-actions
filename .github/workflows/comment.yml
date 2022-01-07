@@ -13,7 +13,6 @@ jobs:
         id: target-branch
         uses: actions/github-script@v5
         with:
-          github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
             const pull_request = await github.rest.pulls.get({
               owner: context.repo.owner,
@@ -36,7 +35,6 @@ jobs:
       - name: Finished
         uses: actions/github-script@v5
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             github.rest.issues.createComment({
               issue_number: context.issue.number,
