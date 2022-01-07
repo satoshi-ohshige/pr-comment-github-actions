@@ -32,3 +32,15 @@ jobs:
 
       - name: Run
         run: echo "${{ fromJSON(steps.target-branch.outputs.result).url }}"
+
+      - name: Finished
+        uses: actions/github-script@v5
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            github.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: "done :rocket: \nsha:${{fromJSON(steps.target-branch.outputs.result).sha}}"
+            })
