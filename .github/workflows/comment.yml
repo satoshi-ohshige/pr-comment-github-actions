@@ -20,14 +20,7 @@ jobs:
               repo: context.repo.repo,
               pull_number: context.issue.number
             })
-            return {
-              url: pull_request.data.html_url,
-              state: pull_request.data.state,
-              title: pull_request.data.title,
-              user: pull_request.data.user,
-              head: pull_request.data.head,
-              base: pull_request.data.base
-            }
+            return pull_request.data
 
       - name: Run
         run: echo "${{ fromJSON(steps.target-branch.outputs.result).url }}"
