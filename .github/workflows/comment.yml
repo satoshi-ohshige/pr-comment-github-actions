@@ -30,4 +30,4 @@ jobs:
             }
 
       - name: Run
-        run: echo "${{ toJSON(steps.target-branch.outputs.result).url }}"
+        run: echo "${{ fromJSON(steps.target-branch.outputs.result).url }}"
