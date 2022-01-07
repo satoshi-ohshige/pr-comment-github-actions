@@ -17,6 +17,7 @@ jobs:
         run: echo "::set-output name=target_environment::$(echo ${{ github.event.comment.body }} | cut -d ' ' -f 2)"
 
       - name: Validate parameter & Notify if invalid
+        id: validate-parameter
         env:
           TARGET_ENVIRONMENT: ${{ steps.get-environment.outputs.target_environment }}
         uses: actions/github-script@v5
@@ -38,7 +39,7 @@ jobs:
             return false
 
       - name: Stop if invalid
-        if: steps.verify-environment.outputs.result == 'false'
+        if: steps.validate-parameter.outputs.result == 'false'
         run: exit 1
 
       - name: Fetch target branch
