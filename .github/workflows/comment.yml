@@ -23,4 +23,4 @@ jobs:
             return pull_request.data
 
       - name: Run
-        run: echo "sha -> ${{ steps.target-branch.outputs.head.sha }}"
+        run: echo "sha -> ${{ steps.target-branch.outputs.result.head.sha }}"
