@@ -32,7 +32,7 @@ jobs:
             return false
 
       - name: Stop if invalid
-        if: steps.verify-environment.outputs.result === 'false'
+        if: steps.verify-environment.outputs.result == 'false'
         run: exit 1
 
       - name: Fetch target branch
