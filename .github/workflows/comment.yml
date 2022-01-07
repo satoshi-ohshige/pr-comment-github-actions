@@ -9,6 +9,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: View context attributes
+        uses: actions/github-script@v5
+        with:
+          script: console.log(context)
+
       - name: Verify environment
         id: verify-environment
         uses: actions/github-script@v5
