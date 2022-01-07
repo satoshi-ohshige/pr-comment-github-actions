@@ -1,0 +1,21 @@
+on:
+  issue_comment:
+    types: [created, edited]
+
+jobs:
+  comment:
+    # PRコメントであり且つ /comment で始まるときのみ動作させる
+    if: github.event.issue.pull_request && startsWith(github.event.comment.body, '/comment')
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/github-script@v5
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            const pull_request = await github.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            })
+            console.log(pull_request.data)
