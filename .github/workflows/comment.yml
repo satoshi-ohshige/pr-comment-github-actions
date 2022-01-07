@@ -2,6 +2,9 @@ on:
   issue_comment:
     types: [created, edited]
 
+env:
+  ALLOWED_ENVIRONMENT_LIST: X,Y,Z
+
 jobs:
   comment:
     # PRコメントであり且つ /comment で始まるときのみ動作させる
@@ -9,31 +12,29 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: View context attributes
-        uses: actions/github-script@v5
-        with:
-          script: console.log(context.payload)
+      - name: Get target environment
+        id: get-environment
+        run: echo "::set-output name=target_environment::$(echo ${{ github.event.comment.body }} | cut -d ' ' -f 2)"
 
-      - name: Verify environment
-        id: verify-environment
+      - name: Validate parameter & Notify if invalid
+        env:
+          TARGET_ENVIRONMENT: ${{ steps.get-environment.outputs.target_environment }}
         uses: actions/github-script@v5
         with:
           script: |
-            const allowed_environment_list = ['X', 'Y', 'Z']
+            const { ALLOWED_ENVIRONMENT_LIST, TARGET_ENVIRONMENT } = process.env
 
-            const comment = context.payload.comment.body.split(' ')
-
-            if (comment.length === 2 && allowed_environment_list.includes(comment[1])) {
-                return comment[1]
+            if (ALLOWED_ENVIRONMENT_LIST.split(',').includes(TARGET_ENVIRONMENT) {
+                return true
             }
 
-            const allowed_environment = allowed_environment_list.join(' or ')
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: "failed :thinking: \nusage: `/comment [" + allowed_environment + "]`"
+              body: "failed :thinking: \nusage: `/comment [" + ALLOWED_ENVIRONMENT_LIST + "]`"
             })
+
             return false
 
       - name: Stop if invalid
