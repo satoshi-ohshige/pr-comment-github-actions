@@ -14,6 +14,7 @@ jobs:
         uses: actions/github-script@v5
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
+          result-encoding: string
           script: |
             const pull_request = await github.rest.pulls.get({
               owner: context.repo.owner,
@@ -21,6 +22,9 @@ jobs:
               pull_number: context.issue.number
             })
             return pull_request.data
+
+      - name: Run
+        run: echo "${{ steps.target-branch.outputs.result }}"
 
       - name: Run
         run: echo "${{ steps.target-branch.outputs.result }}" | jq '.head.sha'
