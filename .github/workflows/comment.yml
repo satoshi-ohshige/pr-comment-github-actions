@@ -53,6 +53,7 @@ jobs:
               repo: context.repo.repo,
               pull_number: context.issue.number
             })
+            console.log(pull_request.data)
             return {
               url: pull_request.data.html_url,
               state: pull_request.data.state,
@@ -76,6 +77,7 @@ jobs:
 
             console.log(PR_STATE)
 
+            // TODO: openとmergedとclosedの違いを探す 
             if (DEFAULT_BRANCH == BASE_BRANCH && PR_STATE == 'merged') {
                 return true
             }
