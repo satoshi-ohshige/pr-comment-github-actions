@@ -73,7 +73,7 @@ jobs:
         uses: actions/github-script@v5
         with:
           script: |
-            const { DEFAULT_BRANCH, BASE_BRANCH, PR_STATE } = process.env
+            const { DEFAULT_BRANCH, BASE_BRANCH, MERGED } = process.env
 
             console.log(PR_STATE)
 
