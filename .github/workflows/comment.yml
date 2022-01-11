@@ -75,8 +75,6 @@ jobs:
           script: |
             const { DEFAULT_BRANCH, BASE_BRANCH, MERGED } = process.env
 
-            console.log(PR_STATE)
-
             if (DEFAULT_BRANCH == BASE_BRANCH && MERGED == 'true') {
                 return true
             }
