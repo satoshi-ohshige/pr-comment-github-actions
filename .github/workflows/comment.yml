@@ -68,17 +68,15 @@ jobs:
       - name: Verify Z & Notify if invalid
         id: verify-z
         if: steps.get-environment.outputs.target_environment == 'Z'
-        env:
-          TARGET_BRANCH_INFO: ${{ fromJson(steps.target-branch.outputs.result) }}
         uses: actions/github-script@v5
         with:
           script: |
             const { DEFAULT_BRANCH, TARGET_BRANCH_INFO } = process.env
 
-            console.log(TARGET_BRANCH_INFO.base)
-            console.log(TARGET_BRANCH_INFO.merged)
+            const base = '${{ fromJson(steps.target-branch.outputs.result).base }}'
+            const merged = '${{ fromJson(steps.target-branch.outputs.result).merged }}'
 
-            if (DEFAULT_BRANCH == TARGET_BRANCH_INFO.base && TARGET_BRANCH_INFO.merged == 'true') {
+            if (DEFAULT_BRANCH == base && merged == 'true') {
                 return true
             }
 
