@@ -61,8 +61,8 @@ jobs:
               branch: pull_request.data.head.ref,
               sha: pull_request.data.head.sha,
               base: pull_request.data.base.ref,
-              base_sha: pull_request.data.base.sha,
-              merged: pull_request.data.merged
+              merged: pull_request.data.merged,
+              merge_commit_sha: pull_request.data.merge_commit_sha
             }
 
       - name: Verify Z & Notify if invalid
@@ -104,5 +104,5 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: "done :rocket: \nsha:${{fromJSON(steps.target-branch.outputs.result).sha}}\nbase_sha:${{fromJSON(steps.target-branch.outputs.result).base_sha}}"
+              body: "done :rocket: \nsha:${{fromJSON(steps.target-branch.outputs.result).sha}}\nmerge_commit_sha:${{fromJSON(steps.target-branch.outputs.result).merge_commit_sha}}"
             })
