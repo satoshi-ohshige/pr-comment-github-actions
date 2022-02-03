@@ -61,6 +61,7 @@ jobs:
               branch: pull_request.data.head.ref,
               sha: pull_request.data.head.sha,
               base: pull_request.data.base.ref,
+              base_sha: pull_request.data.base.sha,
               merged: pull_request.data.merged
             }
 
@@ -103,5 +104,5 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: "done :rocket: \nsha:${{fromJSON(steps.target-branch.outputs.result).sha}}"
+              body: "done :rocket: \nsha:${{fromJSON(steps.target-branch.outputs.result).sha}}\nbase_sha:${{fromJSON(steps.target-branch.outputs.result).base_sha}}"
             })
