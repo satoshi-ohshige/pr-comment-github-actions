@@ -96,7 +96,7 @@ jobs:
 
             console.log(latestCommit)
 
-            retuen latestCommit.data.0.sha
+            return latestCommit.data.0.sha
 
       - name: Stop if invalid
         if: steps.verify-z.outputs.result == 'false'
