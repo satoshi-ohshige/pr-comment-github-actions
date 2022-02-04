@@ -70,24 +70,33 @@ jobs:
         if: steps.get-environment.outputs.target_environment == 'Z'
         uses: actions/github-script@v5
         with:
+          result-encoding: string
           script: |
             const { DEFAULT_BRANCH, TARGET_BRANCH_INFO } = process.env
 
             const base = '${{ fromJson(steps.target-branch.outputs.result).base }}'
             const merged = '${{ fromJson(steps.target-branch.outputs.result).merged }}'
 
-            if (DEFAULT_BRANCH == base && merged == 'true') {
-                return true
+            if (DEFAULT_BRANCH != base || merged != 'true') {
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: "failed :thinking: \nマージ先ブランチが `" + DEFAULT_BRANCH + "` であり、マージ済みでないといけません"
+              })
+
+              return false
             }
 
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
+            const latestCommit = github.rest.repos.listCommits({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: "failed :thinking: \nマージ先ブランチが `" + DEFAULT_BRANCH + "` であり、マージ済みでないといけません"
+              per_page: 1
             })
 
-            return false
+            console.log(latestCommit)
+
+            retuen latestCommit.data.0.sha
 
       - name: Stop if invalid
         if: steps.verify-z.outputs.result == 'false'
@@ -104,5 +113,5 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: "done :rocket: \nsha:${{fromJSON(steps.target-branch.outputs.result).sha}}\nmerge_commit_sha:${{fromJSON(steps.target-branch.outputs.result).merge_commit_sha}}"
+              body: "done :rocket: \nsha:${{fromJSON(steps.target-branch.outputs.result).sha}}\nlatest_commit_sha:${{steps.verify-z.outputs.result}}\nmerge_commit_sha:${{fromJSON(steps.target-branch.outputs.result).merge_commit_sha}}"
             })
