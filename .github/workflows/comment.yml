@@ -109,7 +109,7 @@ jobs:
           TARGET_ENVIRONMENT: ${{ steps.get-environment.outputs.target_environment }}
         with:
           script: |
-            const { AWS_IAM_ROLE_DEV, AWS_IAM_ROLE_PROD, PROD_ENVIRONMENT_LIST } = process.env
+            const { TARGET_ENVIRONMENT, AWS_IAM_ROLE_DEV, AWS_IAM_ROLE_PROD, PROD_ENVIRONMENT_LIST } = process.env
 
             let aws_iam_role = AWS_IAM_ROLE_DEV
             if (PROD_ENVIRONMENT_LIST.split(',').includes(TARGET_ENVIRONMENT)) {
