@@ -31,8 +31,6 @@ jobs:
               comment_id: context.payload.comment.id,
               content: 'eyes'
             })
-            console.log(context.job)
-            console.log(context.runId)
 
       # "/deploy prod" における prod などのデプロイ先環境を取り出す
       - name: Get target environment
