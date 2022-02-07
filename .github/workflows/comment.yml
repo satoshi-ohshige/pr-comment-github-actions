@@ -16,6 +16,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 実行を追えるようにトリガーとなったコメントを出力する
+      - name: Print trigger comment
+        run: echo "${{ github.event.comment.html_url }}"
+
       # 動作していることを表すためにまずリアクションする
       - name: Add reaction for start
         uses: actions/github-script@v5
@@ -27,6 +31,7 @@ jobs:
               comment_id: context.payload.comment.id,
               content: 'eyes'
             })
+            console.log(context.payload.job)
 
       # "/deploy prod" における prod などのデプロイ先環境を取り出す
       - name: Get target environment
@@ -163,3 +168,15 @@ jobs:
       # (仮) ここで、誰がどこに何をデプロイしたかSlackに通知予定
       - name: Notify to Slack
         run: echo "url:${{fromJSON(steps.target-branch.outputs.result).url}} title:${{fromJSON(steps.target-branch.outputs.result).title}} user:${{fromJSON(steps.target-branch.outputs.result).user}}"
+
+      # 何かに失敗した場合はそれがわかるようにリアクションする
+      - name: Add reaction for failure
+        uses: actions/github-script@v5
+        with:
+          script: |
+            github.rest.reactions.createForIssueComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: context.payload.comment.id,
+              content: 'confused'
+            })
