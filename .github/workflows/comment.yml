@@ -123,7 +123,7 @@ jobs:
         uses: actions/github-script@v5
         with:
           script: |
-            const { TARGET_ENVIRONMENT, AWS_IAM_ROLE_DEV, AWS_IAM_ROLE_PROD, PROD_ENVIRONMENT_LIST } = process.env
+            const { AWS_IAM_ROLE_DEV, AWS_IAM_ROLE_PROD, PROD_ENVIRONMENT_LIST } = process.env
 
             const target_environment = '${{ steps.get-environment.outputs.target_environment }}'
 
