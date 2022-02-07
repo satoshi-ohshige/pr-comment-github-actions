@@ -116,7 +116,7 @@ jobs:
               aws_iam_role = AWS_IAM_ROLE_PROD
             }
 
-            let commit_sha = ${{ fromJSON(steps.target-branch.outputs.result).sha }}
+            let commit_sha = '${{ fromJSON(steps.target-branch.outputs.result).sha }}'
             if (TARGET_ENVIRONMENT == 'prod') {
               const commit_list = await github.rest.repos.listCommits({
                 owner: context.repo.owner,
