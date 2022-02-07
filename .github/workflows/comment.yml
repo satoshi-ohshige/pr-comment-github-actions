@@ -16,6 +16,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 動作していることを表すためにまずリアクションする
+      - name: Add reaction for start
+        id: verify-target
+        uses: actions/github-script@v5
+        with:
+          script: |
+            //github.rest.reactions.createForIssueComment({
+            //  owner: context.repo.owner,
+            //  repo: context.repo.repo,
+            //  comment_id: 
+            //  content: 'eyes'
+            //})
+            console.log(${{ github.event.comment }})
+            console.log(context)
+
       # "/deploy prod" における prod などのデプロイ先環境を取り出す
       - name: Get target environment
         id: get-environment
