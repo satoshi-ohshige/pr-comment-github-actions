@@ -4,21 +4,26 @@ on:
 
 env:
   DEFAULT_BRANCH: main
-  ALLOWED_ENVIRONMENT_LIST: X,Y,Z
+  ALLOWED_ENVIRONMENT_LIST: test,prod
+  AWS_IAM_ROLE_DEV: iam-role-dev
+  AWS_IAM_ROLE_PROD: iam-role-prod
+  PROD_ENVIRONMENT_LIST: prod
 
 jobs:
-  comment:
-    # PRコメントであり且つ /comment で始まるときのみ動作させる
-    if: github.event.issue.pull_request && startsWith(github.event.comment.body, '/comment')
+  deploy:
+    # PRコメントであり且つ /deploy で始まるときのみ動作させる
+    if: github.event.issue.pull_request && startsWith(github.event.comment.body, '/deploy')
     runs-on: ubuntu-latest
 
     steps:
+      # "/deploy prod" における prod などのデプロイ先環境を取り出す
       - name: Get target environment
         id: get-environment
         run: echo "::set-output name=target_environment::$(echo ${{ github.event.comment.body }} | cut -d ' ' -f 2)"
 
-      - name: Validate parameter & Notify if invalid
-        id: validate-parameter
+      # 指定されたデプロイ先環境が正常な値であることを確認し、不正であればその旨を出力する
+      - name: Verify target & Notify if invalid
+        id: verify-target
         env:
           TARGET_ENVIRONMENT: ${{ steps.get-environment.outputs.target_environment }}
         uses: actions/github-script@v5
@@ -34,15 +39,17 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: "failed :thinking: \nusage: `/comment [" + ALLOWED_ENVIRONMENT_LIST + "]`"
+              body: "failed :flushed: \nusage: `/deploy [" + ALLOWED_ENVIRONMENT_LIST + "]`"
             })
 
             return false
 
+      # 直前の検証で不正であれば、終了する
       - name: Stop if invalid
-        if: steps.validate-parameter.outputs.result == 'false'
+        if: steps.verify-target.outputs.result == 'false'
         run: exit 1
 
+      # デプロイに必要な情報や実行者などをまとめる
       - name: Fetch target branch
         id: target-branch
         uses: actions/github-script@v5
@@ -61,50 +68,75 @@ jobs:
               branch: pull_request.data.head.ref,
               sha: pull_request.data.head.sha,
               base: pull_request.data.base.ref,
-              merged: pull_request.data.merged,
-              merge_commit_sha: pull_request.data.merge_commit_sha
+              merged: pull_request.data.merged
             }
 
-      - name: Verify Z & Notify if invalid
-        id: verify-z
-        if: steps.get-environment.outputs.target_environment == 'Z'
+      # 本番環境へのデプロイであればマージ先がデフォルトブランチであり且つPRがマージ済みであることを確認し、満たしていなければその旨を出力する
+      - name: Verify deployment production & Notify if invalid
+        id: verify-deployment-production
+        if: steps.get-environment.outputs.target_environment == 'prod'
         uses: actions/github-script@v5
         with:
-          result-encoding: string
           script: |
-            const { DEFAULT_BRANCH, TARGET_BRANCH_INFO } = process.env
+            const { DEFAULT_BRANCH } = process.env
 
-            const base = '${{ fromJson(steps.target-branch.outputs.result).base }}'
+            const base_branch = '${{ fromJson(steps.target-branch.outputs.result).base }}'
             const merged = '${{ fromJson(steps.target-branch.outputs.result).merged }}'
 
-            if (DEFAULT_BRANCH != base || merged != 'true') {
-              github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: "failed :thinking: \nマージ先ブランチが `" + DEFAULT_BRANCH + "` であり、マージ済みでないといけません"
-              })
-
-              return false
+            if (DEFAULT_BRANCH == base_branch && merged == 'true') {
+                return true
             }
 
-            const latestCommit = await github.rest.repos.listCommits({
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              per_page: 1
+              body: "failed :cold_sweat: \n本番環境へデプロイするためには、マージ先ブランチが `" + DEFAULT_BRANCH + "` であり、マージ済みでないといけません"
             })
 
-            console.log(latestCommit)
+            return false
 
-            return latestCommit.data[0].sha
-
+      # 直前の検証で不正であれば、終了する
       - name: Stop if invalid
-        if: steps.verify-z.outputs.result == 'false'
+        if: steps.verify-deployment-production.outputs.result == 'false'
         run: exit 1
 
-      - name: Run
-        run: echo "Run!"
+      # デプロイ先のアカウントとデプロイするコミットSHAを用意する
+      - name: Prepare account and commit sha
+        id: prepare-deployment-info
+        uses: actions/github-script@v5
+        env:
+          TARGET_ENVIRONMENT: ${{ steps.get-environment.outputs.target_environment }}
+        with:
+          script: |
+            const { AWS_IAM_ROLE_DEV, AWS_IAM_ROLE_PROD, PROD_ENVIRONMENT_LIST } = process.env
 
+            let aws_iam_role = AWS_IAM_ROLE_DEV
+            if (PROD_ENVIRONMENT_LIST.split(',').includes(TARGET_ENVIRONMENT)) {
+              aws_iam_role = AWS_IAM_ROLE_PROD
+            }
+
+            let commit_sha = ${{ fromJSON(steps.target-branch.outputs.result).sha }}
+            if (TARGET_ENVIRONMENT == 'prod') {
+              const commit_list = await github.rest.repos.listCommits({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                per_page: 1
+              })
+
+              commit_sha = commit_list.data[0].sha
+            }
+
+            return {
+              aws_iam_role: aws_iam_role,
+              commit_sha: commit_sha
+            }
+
+      # (仮) ここで、 aws cli でデプロイ開始予定
+      - name: Start Deploying
+        run: echo "Start Deploying! role:${{fromJSON(steps.prepare-deployment-info.outputs.result).aws_iam_role}} sha:${{fromJSON(steps.prepare-deployment-info.outputs.result).commit_sha}}"
+
+      # デプロイ開始完了とAWSへのリンクを出力する
       - name: Finished
         uses: actions/github-script@v5
         with:
@@ -113,5 +145,9 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: "done :rocket: \nsha:${{fromJSON(steps.target-branch.outputs.result).sha}}\nlatest_commit_sha:${{steps.verify-z.outputs.result}}\nmerge_commit_sha:${{fromJSON(steps.target-branch.outputs.result).merge_commit_sha}}"
+              body: "デプロイを開始しました！ :rocket: \n https://ap-northeast-1.console.aws.amazon.com/codesuite/codedeploy/deployments/d-XXXXXXXXX?region=ap-northeast-1"
             })
+
+      # (仮) ここで、誰がどこに何をデプロイしたかSlackに通知予定
+      - name: Notify to Slack
+        run: echo "url:${{fromJSON(steps.target-branch.outputs.result).url}} title:${{fromJSON(steps.target-branch.outputs.result).title}} user:${{fromJSON(steps.target-branch.outputs.result).user}}"
