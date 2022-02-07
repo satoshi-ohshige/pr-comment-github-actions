@@ -4,10 +4,10 @@ on:
 
 env:
   DEFAULT_BRANCH: main
-  ALLOWED_ENVIRONMENT_LIST: test,prod
+  ALLOWED_ENVIRONMENT_LIST: test,stage,prod
   AWS_IAM_ROLE_DEV: iam-role-dev
   AWS_IAM_ROLE_PROD: iam-role-prod
-  PROD_ENVIRONMENT_LIST: prod
+  PROD_ENVIRONMENT_LIST: stage,prod
 
 jobs:
   deploy:
@@ -24,14 +24,14 @@ jobs:
       # 指定されたデプロイ先環境が正常な値であることを確認し、不正であればその旨を出力する
       - name: Verify target & Notify if invalid
         id: verify-target
-        env:
-          TARGET_ENVIRONMENT: ${{ steps.get-environment.outputs.target_environment }}
         uses: actions/github-script@v5
         with:
           script: |
             const { ALLOWED_ENVIRONMENT_LIST, TARGET_ENVIRONMENT } = process.env
 
-            if (ALLOWED_ENVIRONMENT_LIST.split(',').includes(TARGET_ENVIRONMENT)) {
+            const target_environment = '${{ steps.get-environment.outputs.target_environment }}'
+
+            if (ALLOWED_ENVIRONMENT_LIST.split(',').includes(target_environment)) {
                 return true
             }
 
@@ -105,19 +105,19 @@ jobs:
       - name: Prepare account and commit sha
         id: prepare-deployment-info
         uses: actions/github-script@v5
-        env:
-          TARGET_ENVIRONMENT: ${{ steps.get-environment.outputs.target_environment }}
         with:
           script: |
             const { TARGET_ENVIRONMENT, AWS_IAM_ROLE_DEV, AWS_IAM_ROLE_PROD, PROD_ENVIRONMENT_LIST } = process.env
 
+            const target_environment = '${{ steps.get-environment.outputs.target_environment }}'
+
             let aws_iam_role = AWS_IAM_ROLE_DEV
-            if (PROD_ENVIRONMENT_LIST.split(',').includes(TARGET_ENVIRONMENT)) {
+            if (PROD_ENVIRONMENT_LIST.split(',').includes(target_environment)) {
               aws_iam_role = AWS_IAM_ROLE_PROD
             }
 
             let commit_sha = '${{ fromJSON(steps.target-branch.outputs.result).sha }}'
-            if (TARGET_ENVIRONMENT == 'prod') {
+            if (target_environment == 'prod') {
               const commit_list = await github.rest.repos.listCommits({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
