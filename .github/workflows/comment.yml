@@ -18,7 +18,6 @@ jobs:
     steps:
       # 動作していることを表すためにまずリアクションする
       - name: Add reaction for start
-        id: verify-target
         uses: actions/github-script@v5
         with:
           script: |
