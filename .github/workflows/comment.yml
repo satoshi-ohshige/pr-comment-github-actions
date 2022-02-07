@@ -21,14 +21,12 @@ jobs:
         uses: actions/github-script@v5
         with:
           script: |
-            //github.rest.reactions.createForIssueComment({
-            //  owner: context.repo.owner,
-            //  repo: context.repo.repo,
-            //  comment_id: 
-            //  content: 'eyes'
-            //})
-            console.log(${{ github.event.comment }})
-            console.log(context)
+            github.rest.reactions.createForIssueComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: context.comment.id,
+              content: 'eyes'
+            })
 
       # "/deploy prod" における prod などのデプロイ先環境を取り出す
       - name: Get target environment
