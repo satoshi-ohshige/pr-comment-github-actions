@@ -43,7 +43,7 @@ jobs:
         uses: actions/github-script@v5
         with:
           script: |
-            const { ALLOWED_ENVIRONMENT_LIST, TARGET_ENVIRONMENT } = process.env
+            const { ALLOWED_ENVIRONMENT_LIST } = process.env
 
             const target_environment = '${{ steps.get-environment.outputs.target_environment }}'
 
