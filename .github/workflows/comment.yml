@@ -98,27 +98,28 @@ jobs:
 #        if: steps.verify-target.outputs.result == 'false'
 #        run: exit 1
 #
-#      # デプロイに必要な情報や実行者などをまとめる
-#      - name: Fetch target branch
-#        id: target-branch
-#        uses: actions/github-script@v5
-#        with:
-#          script: |
-#            const pull_request = await github.rest.pulls.get({
-#              owner: context.repo.owner,
-#              repo: context.repo.repo,
-#              pull_number: context.issue.number
-#            })
-#
-#            return {
-#              url: pull_request.data.html_url,
-#              title: pull_request.data.title,
-#              user: pull_request.data.user.login,
-#              branch: pull_request.data.head.ref,
-#              sha: pull_request.data.head.sha,
-#              base: pull_request.data.base.ref,
-#              merged: pull_request.data.merged
-#            }
+      # デプロイに必要な情報や実行者などをまとめる
+      - name: Fetch target branch
+        id: target-branch
+        uses: actions/github-script@v5
+        with:
+          script: |
+            const pull_request = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            })
+            console.log(pull_request)
+
+            return {
+              url: pull_request.data.html_url,
+              title: pull_request.data.title,
+              user: pull_request.data.user.login,
+              branch: pull_request.data.head.ref,
+              sha: pull_request.data.head.sha,
+              base: pull_request.data.base.ref,
+              merged: pull_request.data.merged
+            }
 #
 #      # 本番環境へのデプロイであればマージ先がデフォルトブランチであり且つPRがマージ済みであることを確認し、満たしていなければその旨を出力する
 #      - name: Verify deployment production & Notify if invalid
