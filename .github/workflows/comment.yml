@@ -9,6 +9,7 @@ env:
   AWS_IAM_ROLE_PROD: iam-role-prod
   PROD_ENVIRONMENT_LIST: stage,prod
   CODEPIPELINE_NAME: prod-pipeline
+  CODEPIPELINE_ARTIFACT_SOURCE_NAME: source_output
   CODEPIPELINE_APPROVAL_STAGE_NAME: prod-pipeline-approval
   CODEPIPELINE_APPROVAL_NAME: Approval
 
@@ -51,10 +52,9 @@ jobs:
 #              ]
 #            }
 
-      # 実行を追えるようにトリガーとなったコメントを出力する
       - name: Print trigger comment
         run: |
-          echo "${{ github.event.comment.html_url }}"
+          echo "${{ github.event.comment }}"
 
 #      # 動作していることを表すためにまずリアクションする
 #      - name: Add reaction for start
@@ -160,13 +160,13 @@ jobs:
 
           echo "- 現在のApprovalのトリガーとなったコミットIDを抽出する(デプロイを行いたいPRと同一であることを確認するため)"
           cat get-pipeline-execution.json \
-            | jq -r '.pipelineExecution.artifactRevisions | .[] | select(.name == "source_output") | .revisionId' \
+            | jq -r '.pipelineExecution.artifactRevisions | .[] | select(.name == "${{ env.CODEPIPELINE_ARTIFACT_SOURCE_NAME }}") | .revisionId' \
             > approval_revision_id
           cat approval_revision_id
 
           echo "- 現在のApprovalのトリガーとなったコミットメッセージを抽出する(トリガーとなったPRについて容易に判断できるようにするため)"
           cat get-pipeline-execution.json \
-            | jq -r '.pipelineExecution.artifactRevisions | .[] | select(.name == "source_output") | .revisionSummary' \
+            | jq -r '.pipelineExecution.artifactRevisions | .[] | select(.name == "${{ env.CODEPIPELINE_ARTIFACT_SOURCE_NAME }}") | .revisionSummary' \
             | jq '.CommitMessage' \
             > approval_revision_commit_message
           cat approval_revision_commit_message
