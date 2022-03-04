@@ -135,9 +135,6 @@ jobs:
         id: codepipeline
         run: |
           echo "- get-pipeline-stateコマンドで現在のパイプラインの状態を取得する"
-          aws codepipeline get-pipeline-state \
-            --name ${{ env.CODEPIPELINE_NAME }} \
-            > get-pipeline-state.json
           cat get-pipeline-state.json
 
           echo "- 現在のApprovalステージのパイプライン実行IDを抽出する(デプロイを行いたいPRと現在のApprovalのトリガーとなったPRが同一であることを確認するため)"
@@ -159,10 +156,6 @@ jobs:
           cat approval_token
 
           echo "- get-pipeline-executionコマンドで現在のApprovalステージのパイプライン情報を取得する"
-          aws codepipeline get-pipeline-execution \
-            --pipeline-name ${{ env.CODEPIPELINE_NAME }} \
-            --pipeline-execution-id $(cat approval_pipeline_execution_id) \
-            > get-pipeline-execution.json
           cat get-pipeline-execution.json
 
           echo "- 現在のApprovalのトリガーとなったコミットIDを抽出する(デプロイを行いたいPRと同一であることを確認するため)"
