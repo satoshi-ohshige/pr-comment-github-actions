@@ -169,7 +169,13 @@ jobs:
         with:
           script: |
             const { CODEPIPELINE_NAME } = process.env
+
+            const approval_revision_id = '${{ steps.codepipeline.outputs.approval_revision_id }}'
             const approval_stage_status = '${{ steps.codepipeline.outputs.approval_stage_status }}'
+            const merge_commit_sha = '${{ fromJSON(steps.target-branch.outputs.result).merge_commit_sha }}'
+
+            const codepipeline_summary_url = `https://ap-northeast-1.console.aws.amazon.com/codesuite/codepipeline/pipelines/${CODEPIPELINE_NAME}/view?region=ap-northeast-1`
+            const approval_revision_github_url = "https://github.com/${{ github.repository }}/commit/" + approval_revision_id
 
             if (approval_stage_status != 'InProgress') {
               github.rest.issues.createComment({
@@ -177,13 +183,10 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 body: "failed :thinking: \n承認待ちのデプロイがありません。すべてデプロイ済みかソースの用意が済んでいない可能性があります。\n"
-                      + `https://ap-northeast-1.console.aws.amazon.com/codesuite/codepipeline/pipelines/${CODEPIPELINE_NAME}/view?region=ap-northeast-1`
+                      + `現在のCodePipelineの各ステージの状態は [コチラ](${codepipeline_summary_url})`
               })
               return false
             }
-
-            const approval_revision_id = '${{ steps.codepipeline.outputs.approval_revision_id }}'
-            const merge_commit_sha = '${{ fromJSON(steps.target-branch.outputs.result).merge_commit_sha }}'
 
             if (approval_revision_id != merge_commit_sha) {
               github.rest.issues.createComment({
@@ -191,10 +194,9 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 body: "failed :thinking: \n承認待ちのデプロイがこのPRを対象としたものではありません。\n他のPRでマージ後にデプロイ作業もしくはApproval却下作業が行われていない可能性があります。\n\n"
-                      + "トリガーとなったマージコミットは以下です。\n"
-                      + "https://github.com/${{ github.repository }}/commit/" + merge_commit_sha + "\n"
+                      + `トリガーとなった [マージコミット](${approval_revision_github_url}) は以下です。\n`
                       + "```\n" + ${{ steps.codepipeline.outputs.approval_revision_commit_message }} + "\n```\n\n"
-                      + `https://ap-northeast-1.console.aws.amazon.com/codesuite/codepipeline/pipelines/${CODEPIPELINE_NAME}/view?region=ap-northeast-1`
+                      + `現在のCodePipelineの各ステージの状態は [コチラ](${codepipeline_summary_url})`
               })
               return false
             }
