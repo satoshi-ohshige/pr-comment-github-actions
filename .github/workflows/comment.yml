@@ -131,6 +131,10 @@ jobs:
         run: |
           ls -la
           cat get-pipeline-state.json
+          cat get-pipeline-state.json | jq -r '.stageStates | .[] | select(.stageName == "prod-pipeline-approval") | .latestExecution.pipelineExecutionId' > pipelineExecutionId
+          cat pipelineExecutionId
+          cat get-pipeline-state.json | jq -r '.stageStates | .[] | select(.stageName == "prod-pipeline-approval") | .actionStates | .[] | select(.actionName == "Approval") | .latestExecution.token' > approvalToken
+          cat approvalToken
 
 #
 #      # 本番環境へのデプロイであればマージ先がデフォルトブランチであり且つPRがマージ済みであることを確認し、満たしていなければその旨を出力する
