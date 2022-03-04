@@ -1,0 +1,15 @@
+{
+  "pipelineExecution": {
+    "pipelineName": "prod-pipeline",
+    "pipelineVersion": 1,
+    "pipelineExecutionId": "44444444-4444-4444-4444-444444444444",
+    "status": "Succeeded",
+    "artifactRevisions": [
+      {
+        "name": "source_output",
+        "revisionId": "8888888888888888888888888888888888888888",
+        "revisionSummary": "{\"ProviderType\":\"GitHub\",\"CommitMessage\":\"Merge pull request #1000 from xxx/aaaaaaaa\\n\\nコミットメッセージ！！！！\"}"
+      }
+    ]
+  }
+}

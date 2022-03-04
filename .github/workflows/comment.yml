@@ -131,10 +131,18 @@ jobs:
         run: |
           ls -la
           cat get-pipeline-state.json
-          cat get-pipeline-state.json | jq -r '.stageStates | .[] | select(.stageName == "prod-pipeline-approval") | .latestExecution.pipelineExecutionId' > pipelineExecutionId
-          cat pipelineExecutionId
-          cat get-pipeline-state.json | jq -r '.stageStates | .[] | select(.stageName == "prod-pipeline-approval") | .actionStates | .[] | select(.actionName == "Approval") | .latestExecution.token' > approvalToken
-          cat approvalToken
+          cat get-pipeline-state.json | jq -r '.stageStates | .[] | select(.stageName == "prod-pipeline-approval") | .latestExecution.pipelineExecutionId' > approval_pipeline_execution_id
+          cat approval_pipeline_execution_id
+          cat get-pipeline-state.json | jq -r '.stageStates | .[] | select(.stageName == "prod-pipeline-approval") | .actionStates | .[] | select(.actionName == "Approval") | .latestExecution.token' > approval_token
+          cat approval_token
+          cat get-pipeline-execution.json
+          cat get-pipeline-execution.json | jq -r '.pipelineExecution.artifactRevisions | .[] | select(.name == "source_output") | .revisionId' > approval_revision_id
+          cat approval_revision_id
+          cat get-pipeline-execution.json | jq -r '.pipelineExecution.artifactRevisions | .[] | select(.name == "source_output") | .revisionSummary' | jq '.CommitMessage' > approval_revision_commit_message
+          cat approval_revision_commit_message
+          echo "::set-output name=approval_token::$(cat approval_token)"
+          echo "::set-output name=approval_revision_id::$(cat approval_revision_id)"
+          echo "::set-output name=approval_revision_commit_message::$(cat approval_revision_commit_message)"
 
 #
 #      # 本番環境へのデプロイであればマージ先がデフォルトブランチであり且つPRがマージ済みであることを確認し、満たしていなければその旨を出力する
