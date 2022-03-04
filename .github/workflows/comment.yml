@@ -8,6 +8,7 @@ env:
   AWS_IAM_ROLE_DEV: iam-role-dev
   AWS_IAM_ROLE_PROD: iam-role-prod
   PROD_ENVIRONMENT_LIST: stage,prod
+  CODEPIPELINE_NAME: prod-pipeline
 
 jobs:
   deploy:
@@ -167,6 +168,7 @@ jobs:
         uses: actions/github-script@v5
         with:
           script: |
+            const { CODEPIPELINE_NAME } = process.env
             const approval_stage_status = '${{ steps.codepipeline.outputs.approval_stage_status }}'
 
             if (approval_stage_status != 'InProgress') {
@@ -174,7 +176,8 @@ jobs:
                 issue_number: context.issue.number,
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                body: "failed :thinking: \n承認待ちのデプロイがありません。すべてデプロイ済みかソースの用意が済んでいない可能性があります。"
+                body: "failed :thinking: \n承認待ちのデプロイがありません。すべてデプロイ済みかソースの用意が済んでいない可能性があります。\n"
+                      + `https://ap-northeast-1.console.aws.amazon.com/codesuite/codepipeline/pipelines/${CODEPIPELINE_NAME}/view?region=ap-northeast-1`
               })
               return false
             }
@@ -188,7 +191,10 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 body: "failed :thinking: \n承認待ちのデプロイがこのPRを対象としたものではありません。\n他のPRでマージ後にデプロイ作業もしくはApproval却下作業が行われていない可能性があります。\n\n"
-                      + "トリガーとなったマージコミットは以下です。\n```\n" + ${{ steps.codepipeline.outputs.approval_revision_commit_message }} + "\n```"
+                      + "トリガーとなったマージコミットは以下です。\n"
+                      + "https://github.com/${{ github.repository }}/commit/" + merge_commit_sha + "\n"
+                      + "```\n" + ${{ steps.codepipeline.outputs.approval_revision_commit_message }} + "\n```\n\n"
+                      + `https://ap-northeast-1.console.aws.amazon.com/codesuite/codepipeline/pipelines/${CODEPIPELINE_NAME}/view?region=ap-northeast-1`
               })
               return false
             }

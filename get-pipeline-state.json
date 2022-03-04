@@ -41,7 +41,7 @@
           "actionName": "Approval",
           "latestExecution": {
             "actionExecutionId": "33333333-3333-3333-3333-333333333333",
-            "status": "Succeeded",
+            "status": "InProgress",
             "token": "33333333-3333-3333-3333-333333333333"
           }
         }
