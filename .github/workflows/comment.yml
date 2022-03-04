@@ -120,6 +120,18 @@ jobs:
               base: pull_request.data.base.ref,
               merged: pull_request.data.merged
             }
+
+      - name: checkout repository
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ fromJSON(steps.target-branch.outputs.result).sha }}
+          fetch-depth: 0
+
+      - name: echo json file
+        run: |
+          ls -la
+          cat get-pipeline-state.json
+
 #
 #      # 本番環境へのデプロイであればマージ先がデフォルトブランチであり且つPRがマージ済みであることを確認し、満たしていなければその旨を出力する
 #      - name: Verify deployment production & Notify if invalid
