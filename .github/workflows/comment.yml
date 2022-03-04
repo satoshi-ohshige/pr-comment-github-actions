@@ -128,21 +128,56 @@ jobs:
           fetch-depth: 0
 
       - name: echo json file
+        id: codepipeline
         run: |
-          ls -la
+          echo "- get-pipeline-state"
           cat get-pipeline-state.json
+
+          echo "- approval_pipeline_execution_id"
           cat get-pipeline-state.json | jq -r '.stageStates | .[] | select(.stageName == "prod-pipeline-approval") | .latestExecution.pipelineExecutionId' > approval_pipeline_execution_id
           cat approval_pipeline_execution_id
+
+          echo "- approval_token"
           cat get-pipeline-state.json | jq -r '.stageStates | .[] | select(.stageName == "prod-pipeline-approval") | .actionStates | .[] | select(.actionName == "Approval") | .latestExecution.token' > approval_token
           cat approval_token
+
+          echo "- get-pipeline-execution"
           cat get-pipeline-execution.json
+
+          echo "- approval_revision_id"
           cat get-pipeline-execution.json | jq -r '.pipelineExecution.artifactRevisions | .[] | select(.name == "source_output") | .revisionId' > approval_revision_id
           cat approval_revision_id
+
+          echo "- approval_revision_commit_message"
           cat get-pipeline-execution.json | jq -r '.pipelineExecution.artifactRevisions | .[] | select(.name == "source_output") | .revisionSummary' | jq '.CommitMessage' > approval_revision_commit_message
           cat approval_revision_commit_message
+
           echo "::set-output name=approval_token::$(cat approval_token)"
           echo "::set-output name=approval_revision_id::$(cat approval_revision_id)"
           echo "::set-output name=approval_revision_commit_message::$(cat approval_revision_commit_message)"
+
+          cat get-pipeline-execution.json | jq -r '.pipelineExecution.artifactRevisions | .[] | select(.name == "source_output") | .hoge' > null_text
+          cat null_text
+          echo "::set-output name=null_text::$(cat null_text)"
+
+      - name: commit comment
+        uses: actions/github-script@v5
+        with:
+          script: |
+            const approval_token = '${{ steps.codepipeline.outputs.approval_token }}'
+            const approval_revision_id = '${{ steps.codepipeline.outputs.approval_revision_id }}'
+            const null_text = '${{ steps.codepipeline.outputs.null_text }}'
+
+            console.log(approval_token)
+            console.log(approval_revision_id)
+            console.log(null_text)
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: "failed :cold_sweat: \n" + ${{ steps.codepipeline.outputs.approval_revision_commit_message }}
+            })
 
 #
 #      # 本番環境へのデプロイであればマージ先がデフォルトブランチであり且つPRがマージ済みであることを確認し、満たしていなければその旨を出力する
