@@ -54,7 +54,7 @@ jobs:
 
       - name: Print trigger comment
         run: |
-          echo "${{ github.event.comment }}"
+          echo "${{ github.event.comment.user.login }}"
 
 #      # 動作していることを表すためにまずリアクションする
 #      - name: Add reaction for start
