@@ -162,10 +162,6 @@ jobs:
           echo "::set-output name=approval_revision_id::$(cat approval_revision_id)"
           echo "::set-output name=approval_revision_commit_message::$(cat approval_revision_commit_message)"
 
-          cat get-pipeline-execution.json | jq -r '.pipelineExecution.artifactRevisions | .[] | select(.name == "source_output") | .hoge' > null_text
-          cat null_text
-          echo "::set-output name=null_text::$(cat null_text)"
-
       - name: verify approval
         id: verify-approval
         uses: actions/github-script@v5
@@ -191,7 +187,7 @@ jobs:
                 issue_number: context.issue.number,
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                body: "failed :thinking: \n承認待ちのデプロイがこのPRを対象としたものではありません。他のPRでマージ後にデプロイ作業もしくはApproval却下作業が行われていない可能性があります。\n"
+                body: "failed :thinking: \n承認待ちのデプロイがこのPRを対象としたものではありません。\n他のPRでマージ後にデプロイ作業もしくはApproval却下作業が行われていない可能性があります。\n\n"
                       + "トリガーとなったマージコミットは以下です。\n```\n" + ${{ steps.codepipeline.outputs.approval_revision_commit_message }} + "\n```"
               })
               return false
