@@ -118,7 +118,8 @@ jobs:
               branch: pull_request.data.head.ref,
               sha: pull_request.data.head.sha,
               base: pull_request.data.base.ref,
-              merged: pull_request.data.merged
+              merged: pull_request.data.merged,
+              merge_commit_sha: pull_request.data.merge_commit_sha
             }
 
       - name: checkout repository
@@ -137,6 +138,10 @@ jobs:
           cat get-pipeline-state.json | jq -r '.stageStates | .[] | select(.stageName == "prod-pipeline-approval") | .latestExecution.pipelineExecutionId' > approval_pipeline_execution_id
           cat approval_pipeline_execution_id
 
+          echo "- approval_stage_status"
+          cat get-pipeline-state.json | jq -r '.stageStates | .[] | select(.stageName == "prod-pipeline-approval") | .actionStates | .[] | select(.actionName == "Approval") | .latestExecution.status' > approval_stage_status
+          cat approval_stage_status
+
           echo "- approval_token"
           cat get-pipeline-state.json | jq -r '.stageStates | .[] | select(.stageName == "prod-pipeline-approval") | .actionStates | .[] | select(.actionName == "Approval") | .latestExecution.token' > approval_token
           cat approval_token
@@ -152,6 +157,7 @@ jobs:
           cat get-pipeline-execution.json | jq -r '.pipelineExecution.artifactRevisions | .[] | select(.name == "source_output") | .revisionSummary' | jq '.CommitMessage' > approval_revision_commit_message
           cat approval_revision_commit_message
 
+          echo "::set-output name=approval_stage_status::$(cat approval_stage_status)"
           echo "::set-output name=approval_token::$(cat approval_token)"
           echo "::set-output name=approval_revision_id::$(cat approval_revision_id)"
           echo "::set-output name=approval_revision_commit_message::$(cat approval_revision_commit_message)"
@@ -160,24 +166,42 @@ jobs:
           cat null_text
           echo "::set-output name=null_text::$(cat null_text)"
 
-      - name: commit comment
+      - name: verify approval
+        id: verify-approval
         uses: actions/github-script@v5
         with:
           script: |
-            const approval_token = '${{ steps.codepipeline.outputs.approval_token }}'
+            const approval_stage_status = '${{ steps.codepipeline.outputs.approval_stage_status }}'
+
+            if (approval_stage_status != 'InProgress') {
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: "failed :thinking: \n承認待ちのデプロイがありません。すべてデプロイ済みかソースの用意が済んでいない可能性があります。"
+              })
+              return false
+            }
+
             const approval_revision_id = '${{ steps.codepipeline.outputs.approval_revision_id }}'
-            const null_text = '${{ steps.codepipeline.outputs.null_text }}'
+            const merge_commit_sha = '${{ fromJSON(steps.target-branch.outputs.result).merge_commit_sha }}'
 
-            console.log(approval_token)
-            console.log(approval_revision_id)
-            console.log(null_text)
+            if (approval_revision_id != merge_commit_sha) {
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: "failed :thinking: \n承認待ちのデプロイがこのPRを対象としたものではありません。他のPRでマージ後にデプロイ作業もしくはApproval却下作業が行われていない可能性があります。\n"
+                      + "トリガーとなったマージコミットは以下です。\n```\n" + ${{ steps.codepipeline.outputs.approval_revision_commit_message }} + "\n```"
+              })
+              return false
+            }
 
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: "failed :cold_sweat: \n" + ${{ steps.codepipeline.outputs.approval_revision_commit_message }}
-            })
+            return true
+
+      - name: Stop if invalid
+        if: steps.verify-approval.outputs.result == 'false'
+        run: exit 1
 
 #
 #      # 本番環境へのデプロイであればマージ先がデフォルトブランチであり且つPRがマージ済みであることを確認し、満たしていなければその旨を出力する
