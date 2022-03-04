@@ -9,6 +9,8 @@ env:
   AWS_IAM_ROLE_PROD: iam-role-prod
   PROD_ENVIRONMENT_LIST: stage,prod
   CODEPIPELINE_NAME: prod-pipeline
+  CODEPIPELINE_APPROVAL_STAGE_NAME: prod-pipeline-approval
+  CODEPIPELINE_APPROVAL_NAME: Approval
 
 jobs:
   deploy:
@@ -132,32 +134,51 @@ jobs:
       - name: echo json file
         id: codepipeline
         run: |
-          echo "- get-pipeline-state"
+          echo "- get-pipeline-stateコマンドで現在のパイプラインの状態を取得する"
+          aws codepipeline get-pipeline-state \
+            --name ${{ env.CODEPIPELINE_NAME }} \
+            > get-pipeline-state.json
           cat get-pipeline-state.json
 
-          echo "- approval_pipeline_execution_id"
-          cat get-pipeline-state.json | jq -r '.stageStates | .[] | select(.stageName == "prod-pipeline-approval") | .latestExecution.pipelineExecutionId' > approval_pipeline_execution_id
+          echo "- 現在のApprovalステージのパイプライン実行IDを抽出する(デプロイを行いたいPRと現在のApprovalのトリガーとなったPRが同一であることを確認するため)"
+          cat get-pipeline-state.json \
+            | jq -r '.stageStates | .[] | select(.stageName == "${{ env.CODEPIPELINE_APPROVAL_STAGE_NAME }}") | .latestExecution.pipelineExecutionId' \
+            > approval_pipeline_execution_id
           cat approval_pipeline_execution_id
 
-          echo "- approval_stage_status"
-          cat get-pipeline-state.json | jq -r '.stageStates | .[] | select(.stageName == "prod-pipeline-approval") | .actionStates | .[] | select(.actionName == "Approval") | .latestExecution.status' > approval_stage_status
+          echo "- 現在のApprovalステージの実行状態を抽出する(承認待ちである必要があるため)"
+          cat get-pipeline-state.json \
+            | jq -r '.stageStates | .[] | select(.stageName == "${{ env.CODEPIPELINE_APPROVAL_STAGE_NAME }}") | .actionStates | .[] | select(.actionName == "${{ env.CODEPIPELINE_APPROVAL_NAME }}") | .latestExecution.status' \
+            > approval_stage_status
           cat approval_stage_status
 
-          echo "- approval_token"
-          cat get-pipeline-state.json | jq -r '.stageStates | .[] | select(.stageName == "prod-pipeline-approval") | .actionStates | .[] | select(.actionName == "Approval") | .latestExecution.token' > approval_token
+          echo "- 現在のApprovalステージを承認するためのトークンを抽出する"
+          cat get-pipeline-state.json \
+            | jq -r '.stageStates | .[] | select(.stageName == "${{ env.CODEPIPELINE_APPROVAL_STAGE_NAME }}") | .actionStates | .[] | select(.actionName == "${{ env.CODEPIPELINE_APPROVAL_NAME }}") | .latestExecution.token' \
+            > approval_token
           cat approval_token
 
-          echo "- get-pipeline-execution"
+          echo "- get-pipeline-executionコマンドで現在のApprovalステージのパイプライン情報を取得する"
+          aws codepipeline get-pipeline-execution \
+            --pipeline-name ${{ env.CODEPIPELINE_NAME }} \
+            --pipeline-execution-id $(cat approval_pipeline_execution_id) \
+            > get-pipeline-execution.json
           cat get-pipeline-execution.json
 
-          echo "- approval_revision_id"
-          cat get-pipeline-execution.json | jq -r '.pipelineExecution.artifactRevisions | .[] | select(.name == "source_output") | .revisionId' > approval_revision_id
+          echo "- 現在のApprovalのトリガーとなったコミットIDを抽出する(デプロイを行いたいPRと同一であることを確認するため)"
+          cat get-pipeline-execution.json \
+            | jq -r '.pipelineExecution.artifactRevisions | .[] | select(.name == "source_output") | .revisionId' \
+            > approval_revision_id
           cat approval_revision_id
 
-          echo "- approval_revision_commit_message"
-          cat get-pipeline-execution.json | jq -r '.pipelineExecution.artifactRevisions | .[] | select(.name == "source_output") | .revisionSummary' | jq '.CommitMessage' > approval_revision_commit_message
+          echo "- 現在のApprovalのトリガーとなったコミットメッセージを抽出する(トリガーとなったPRについて容易に判断できるようにするため)"
+          cat get-pipeline-execution.json \
+            | jq -r '.pipelineExecution.artifactRevisions | .[] | select(.name == "source_output") | .revisionSummary' \
+            | jq '.CommitMessage' \
+            > approval_revision_commit_message
           cat approval_revision_commit_message
 
+          echo "::set-output name=approval_pipeline_execution_id::$(cat approval_pipeline_execution_id)"
           echo "::set-output name=approval_stage_status::$(cat approval_stage_status)"
           echo "::set-output name=approval_token::$(cat approval_token)"
           echo "::set-output name=approval_revision_id::$(cat approval_revision_id)"
