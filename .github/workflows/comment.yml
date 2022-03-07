@@ -82,7 +82,9 @@ jobs:
 #        run: echo "::set-output name=target_environment::$(echo ${{ toJson(github.event.comment.body) }} | cut -d ' ' -f 2 | tr -d "\r\n\t")"
 
       - name: Get target environment 3
-        run: echo ${{ toJson(github.event.comment.body) }} | cut -d ' ' -f 2 | sed -e 's/\\r//g' -e 's/\\n//g' -e 's/\\t//g'
+        run: |
+          echo ${{ toJson(github.event.comment.body) }} | cut -d ' ' -f 2 | sed -e 's/\\r//g' -e 's/\\n//g' -e 's/\\t//g'
+          echo ${{ toJson(github.event.comment.body) }} | cut -d ' ' -f 2 | tr -d '\\r\\n\\t'
 
 #      # 指定されたデプロイ先環境が正常な値であることを確認し、不正であればその旨を出力する
 #      - name: Verify target & Notify if invalid
