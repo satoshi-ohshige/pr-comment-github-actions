@@ -79,7 +79,7 @@ jobs:
 
       - name: Get target environment 3
         id: get-environment
-        run: echo "::set-output name=target_environment::$(echo ${{ toJson(github.event.comment.body) }} | cut -d ' ' -f 2 | tr -r '\r\n\t')"
+        run: echo "::set-output name=target_environment::$(echo ${{ toJson(github.event.comment.body) }} | cut -d ' ' -f 2 | tr -d '\r\n\t')"
 
       # 指定されたデプロイ先環境が正常な値であることを確認し、不正であればその旨を出力する
       - name: Verify target & Notify if invalid
