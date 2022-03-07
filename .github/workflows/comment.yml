@@ -76,6 +76,10 @@ jobs:
       - name: Get target environment 2
         id: get-environment2
         run: echo "::set-output name=target_environment::$(echo ${{ format('"{0}"', github.event.comment.body) }} | cut -d ' ' -f 2)"
+
+      - name: Get target environment 3
+        id: get-environment3
+        run: echo "::set-output name=target_environment::$(echo ${{ toJson(github.event.comment.body) }} | cut -d ' ' -f 2)"
 #
 #      # 指定されたデプロイ先環境が正常な値であることを確認し、不正であればその旨を出力する
 #      - name: Verify target & Notify if invalid
@@ -105,125 +109,125 @@ jobs:
 #        if: steps.verify-target.outputs.result == 'false'
 #        run: exit 1
 #
-      # デプロイに必要な情報や実行者などをまとめる
-      - name: Fetch target branch
-        id: target-branch
-        uses: actions/github-script@v5
-        with:
-          script: |
-            const pull_request = await github.rest.pulls.get({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: context.issue.number
-            })
-            console.log(pull_request)
-
-            return {
-              url: pull_request.data.html_url,
-              title: pull_request.data.title,
-              user: pull_request.data.user.login,
-              branch: pull_request.data.head.ref,
-              sha: pull_request.data.head.sha,
-              base: pull_request.data.base.ref,
-              merged: pull_request.data.merged,
-              merge_commit_sha: pull_request.data.merge_commit_sha
-            }
-
-      - name: checkout repository
-        uses: actions/checkout@v2
-        with:
-          ref: ${{ fromJSON(steps.target-branch.outputs.result).sha }}
-          fetch-depth: 0
-
-      - name: echo json file
-        id: codepipeline
-        run: |
-          echo "- get-pipeline-stateコマンドで現在のパイプラインの状態を取得する"
-          cat get-pipeline-state.json
-
-          echo "- 現在のApprovalステージのパイプライン実行IDを抽出する(デプロイを行いたいPRと現在のApprovalのトリガーとなったPRが同一であることを確認するため)"
-          cat get-pipeline-state.json \
-            | jq -r '.stageStates | .[] | select(.stageName == "${{ env.CODEPIPELINE_APPROVAL_STAGE_NAME }}") | .latestExecution.pipelineExecutionId' \
-            > approval_pipeline_execution_id
-          cat approval_pipeline_execution_id
-
-          echo "- 現在のApprovalステージの実行状態を抽出する(承認待ちである必要があるため)"
-          cat get-pipeline-state.json \
-            | jq -r '.stageStates | .[] | select(.stageName == "${{ env.CODEPIPELINE_APPROVAL_STAGE_NAME }}") | .actionStates | .[] | select(.actionName == "${{ env.CODEPIPELINE_APPROVAL_NAME }}") | .latestExecution.status' \
-            > approval_stage_status
-          cat approval_stage_status
-
-          echo "- 現在のApprovalステージを承認するためのトークンを抽出する"
-          cat get-pipeline-state.json \
-            | jq -r '.stageStates | .[] | select(.stageName == "${{ env.CODEPIPELINE_APPROVAL_STAGE_NAME }}") | .actionStates | .[] | select(.actionName == "${{ env.CODEPIPELINE_APPROVAL_NAME }}") | .latestExecution.token' \
-            > approval_token
-          cat approval_token
-
-          echo "- get-pipeline-executionコマンドで現在のApprovalステージのパイプライン情報を取得する"
-          cat get-pipeline-execution.json
-
-          echo "- 現在のApprovalのトリガーとなったコミットIDを抽出する(デプロイを行いたいPRと同一であることを確認するため)"
-          cat get-pipeline-execution.json \
-            | jq -r '.pipelineExecution.artifactRevisions | .[] | select(.name == "${{ env.CODEPIPELINE_ARTIFACT_SOURCE_NAME }}") | .revisionId' \
-            > approval_revision_id
-          cat approval_revision_id
-
-          echo "- 現在のApprovalのトリガーとなったコミットメッセージを抽出する(トリガーとなったPRについて容易に判断できるようにするため)"
-          cat get-pipeline-execution.json \
-            | jq -r '.pipelineExecution.artifactRevisions | .[] | select(.name == "${{ env.CODEPIPELINE_ARTIFACT_SOURCE_NAME }}") | .revisionSummary' \
-            | jq '.CommitMessage' \
-            > approval_revision_commit_message
-          cat approval_revision_commit_message
-
-          echo "::set-output name=approval_pipeline_execution_id::$(cat approval_pipeline_execution_id)"
-          echo "::set-output name=approval_stage_status::$(cat approval_stage_status)"
-          echo "::set-output name=approval_token::$(cat approval_token)"
-          echo "::set-output name=approval_revision_id::$(cat approval_revision_id)"
-          echo "::set-output name=approval_revision_commit_message::$(cat approval_revision_commit_message)"
-
-      - name: verify approval
-        id: verify-approval
-        uses: actions/github-script@v5
-        with:
-          script: |
-            const { CODEPIPELINE_NAME } = process.env
-
-            const approval_revision_id = '${{ steps.codepipeline.outputs.approval_revision_id }}'
-            const approval_stage_status = '${{ steps.codepipeline.outputs.approval_stage_status }}'
-            const merge_commit_sha = '${{ fromJSON(steps.target-branch.outputs.result).merge_commit_sha }}'
-
-            const codepipeline_summary_url = `https://ap-northeast-1.console.aws.amazon.com/codesuite/codepipeline/pipelines/${CODEPIPELINE_NAME}/view?region=ap-northeast-1`
-            const approval_revision_github_url = "https://github.com/${{ github.repository }}/commit/" + approval_revision_id
-
-            if (approval_stage_status != 'InProgress') {
-              github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: "failed :thinking: \n承認待ちのデプロイがありません。すべてデプロイ済みかソースの用意が済んでいない可能性があります。\n"
-                      + `現在のCodePipelineの各ステージの状態は [コチラ](${codepipeline_summary_url})`
-              })
-              return false
-            }
-
-            if (approval_revision_id != merge_commit_sha) {
-              github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: "failed :thinking: \n承認待ちのデプロイがこのPRを対象としたものではありません。\n他のPRでマージ後にデプロイ作業もしくはApproval却下作業が行われていない可能性があります。\n\n"
-                      + `トリガーとなった [マージコミット](${approval_revision_github_url}) は以下です。\n`
-                      + "```\n" + ${{ steps.codepipeline.outputs.approval_revision_commit_message }} + "\n```\n\n"
-                      + `現在のCodePipelineの各ステージの状態は [コチラ](${codepipeline_summary_url})`
-              })
-              return false
-            }
-
-            return true
-
-      - name: Stop if invalid
-        if: steps.verify-approval.outputs.result == 'false'
-        run: exit 1
+#      # デプロイに必要な情報や実行者などをまとめる
+#      - name: Fetch target branch
+#        id: target-branch
+#        uses: actions/github-script@v5
+#        with:
+#          script: |
+#            const pull_request = await github.rest.pulls.get({
+#              owner: context.repo.owner,
+#              repo: context.repo.repo,
+#              pull_number: context.issue.number
+#            })
+#            console.log(pull_request)
+#
+#            return {
+#              url: pull_request.data.html_url,
+#              title: pull_request.data.title,
+#              user: pull_request.data.user.login,
+#              branch: pull_request.data.head.ref,
+#              sha: pull_request.data.head.sha,
+#              base: pull_request.data.base.ref,
+#              merged: pull_request.data.merged,
+#              merge_commit_sha: pull_request.data.merge_commit_sha
+#            }
+#
+#      - name: checkout repository
+#        uses: actions/checkout@v2
+#        with:
+#          ref: ${{ fromJSON(steps.target-branch.outputs.result).sha }}
+#          fetch-depth: 0
+#
+#      - name: echo json file
+#        id: codepipeline
+#        run: |
+#          echo "- get-pipeline-stateコマンドで現在のパイプラインの状態を取得する"
+#          cat get-pipeline-state.json
+#
+#          echo "- 現在のApprovalステージのパイプライン実行IDを抽出する(デプロイを行いたいPRと現在のApprovalのトリガーとなったPRが同一であることを確認するため)"
+#          cat get-pipeline-state.json \
+#            | jq -r '.stageStates | .[] | select(.stageName == "${{ env.CODEPIPELINE_APPROVAL_STAGE_NAME }}") | .latestExecution.pipelineExecutionId' \
+#            > approval_pipeline_execution_id
+#          cat approval_pipeline_execution_id
+#
+#          echo "- 現在のApprovalステージの実行状態を抽出する(承認待ちである必要があるため)"
+#          cat get-pipeline-state.json \
+#            | jq -r '.stageStates | .[] | select(.stageName == "${{ env.CODEPIPELINE_APPROVAL_STAGE_NAME }}") | .actionStates | .[] | select(.actionName == "${{ env.CODEPIPELINE_APPROVAL_NAME }}") | .latestExecution.status' \
+#            > approval_stage_status
+#          cat approval_stage_status
+#
+#          echo "- 現在のApprovalステージを承認するためのトークンを抽出する"
+#          cat get-pipeline-state.json \
+#            | jq -r '.stageStates | .[] | select(.stageName == "${{ env.CODEPIPELINE_APPROVAL_STAGE_NAME }}") | .actionStates | .[] | select(.actionName == "${{ env.CODEPIPELINE_APPROVAL_NAME }}") | .latestExecution.token' \
+#            > approval_token
+#          cat approval_token
+#
+#          echo "- get-pipeline-executionコマンドで現在のApprovalステージのパイプライン情報を取得する"
+#          cat get-pipeline-execution.json
+#
+#          echo "- 現在のApprovalのトリガーとなったコミットIDを抽出する(デプロイを行いたいPRと同一であることを確認するため)"
+#          cat get-pipeline-execution.json \
+#            | jq -r '.pipelineExecution.artifactRevisions | .[] | select(.name == "${{ env.CODEPIPELINE_ARTIFACT_SOURCE_NAME }}") | .revisionId' \
+#            > approval_revision_id
+#          cat approval_revision_id
+#
+#          echo "- 現在のApprovalのトリガーとなったコミットメッセージを抽出する(トリガーとなったPRについて容易に判断できるようにするため)"
+#          cat get-pipeline-execution.json \
+#            | jq -r '.pipelineExecution.artifactRevisions | .[] | select(.name == "${{ env.CODEPIPELINE_ARTIFACT_SOURCE_NAME }}") | .revisionSummary' \
+#            | jq '.CommitMessage' \
+#            > approval_revision_commit_message
+#          cat approval_revision_commit_message
+#
+#          echo "::set-output name=approval_pipeline_execution_id::$(cat approval_pipeline_execution_id)"
+#          echo "::set-output name=approval_stage_status::$(cat approval_stage_status)"
+#          echo "::set-output name=approval_token::$(cat approval_token)"
+#          echo "::set-output name=approval_revision_id::$(cat approval_revision_id)"
+#          echo "::set-output name=approval_revision_commit_message::$(cat approval_revision_commit_message)"
+#
+#      - name: verify approval
+#        id: verify-approval
+#        uses: actions/github-script@v5
+#        with:
+#          script: |
+#            const { CODEPIPELINE_NAME } = process.env
+#
+#            const approval_revision_id = '${{ steps.codepipeline.outputs.approval_revision_id }}'
+#            const approval_stage_status = '${{ steps.codepipeline.outputs.approval_stage_status }}'
+#            const merge_commit_sha = '${{ fromJSON(steps.target-branch.outputs.result).merge_commit_sha }}'
+#
+#            const codepipeline_summary_url = `https://ap-northeast-1.console.aws.amazon.com/codesuite/codepipeline/pipelines/${CODEPIPELINE_NAME}/view?region=ap-northeast-1`
+#            const approval_revision_github_url = "https://github.com/${{ github.repository }}/commit/" + approval_revision_id
+#
+#            if (approval_stage_status != 'InProgress') {
+#              github.rest.issues.createComment({
+#                issue_number: context.issue.number,
+#                owner: context.repo.owner,
+#                repo: context.repo.repo,
+#                body: "failed :thinking: \n承認待ちのデプロイがありません。すべてデプロイ済みかソースの用意が済んでいない可能性があります。\n"
+#                      + `現在のCodePipelineの各ステージの状態は [コチラ](${codepipeline_summary_url})`
+#              })
+#              return false
+#            }
+#
+#            if (approval_revision_id != merge_commit_sha) {
+#              github.rest.issues.createComment({
+#                issue_number: context.issue.number,
+#                owner: context.repo.owner,
+#                repo: context.repo.repo,
+#                body: "failed :thinking: \n承認待ちのデプロイがこのPRを対象としたものではありません。\n他のPRでマージ後にデプロイ作業もしくはApproval却下作業が行われていない可能性があります。\n\n"
+#                      + `トリガーとなった [マージコミット](${approval_revision_github_url}) は以下です。\n`
+#                      + "```\n" + ${{ steps.codepipeline.outputs.approval_revision_commit_message }} + "\n```\n\n"
+#                      + `現在のCodePipelineの各ステージの状態は [コチラ](${codepipeline_summary_url})`
+#              })
+#              return false
+#            }
+#
+#            return true
+#
+#      - name: Stop if invalid
+#        if: steps.verify-approval.outputs.result == 'false'
+#        run: exit 1
 
 #
 #      # 本番環境へのデプロイであればマージ先がデフォルトブランチであり且つPRがマージ済みであることを確認し、満たしていなければその旨を出力する
