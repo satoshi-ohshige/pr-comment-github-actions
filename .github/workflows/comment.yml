@@ -68,10 +68,14 @@ jobs:
 #              content: 'eyes'
 #            })
 #
-#      # "/deploy prod" における prod などのデプロイ先環境を取り出す
-#      - name: Get target environment
-#        id: get-environment
-#        run: echo "::set-output name=target_environment::$(echo ${{ github.event.comment.body }} | cut -d ' ' -f 2)"
+      # "/deploy prod" における prod などのデプロイ先環境を取り出す
+      - name: Get target environment
+        id: get-environment
+        run: echo "::set-output name=target_environment::$(echo ${{ github.event.comment.body }} | cut -d ' ' -f 2)"
+
+      - name: Get target environment 2
+        id: get-environment2
+        run: echo "::set-output name=target_environment::$(echo ${{ format('"{0}"', github.event.comment.body) }} | cut -d ' ' -f 2)"
 #
 #      # 指定されたデプロイ先環境が正常な値であることを確認し、不正であればその旨を出力する
 #      - name: Verify target & Notify if invalid
