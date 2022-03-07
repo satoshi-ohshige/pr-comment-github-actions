@@ -77,32 +77,35 @@ jobs:
 #        id: get-environment
 #        run: echo "::set-output name=target_environment::$(echo ${{ format('"{0}"', github.event.comment.body) }} | cut -d ' ' -f 2)"
 
+#      - name: Get target environment 3
+#        id: get-environment
+#        run: echo "::set-output name=target_environment::$(echo ${{ toJson(github.event.comment.body) }} | cut -d ' ' -f 2 | tr -d "\r\n\t")"
+
       - name: Get target environment 3
-        id: get-environment
-        run: echo "::set-output name=target_environment::$(echo ${{ toJson(github.event.comment.body) }} | cut -d ' ' -f 2 | tr -d "\r\n\t")"
+        run: echo ${{ toJson(github.event.comment.body) }} | cut -d ' ' -f 2 | tr -d '\r\n\t'
 
-      # 指定されたデプロイ先環境が正常な値であることを確認し、不正であればその旨を出力する
-      - name: Verify target & Notify if invalid
-        id: verify-target
-        uses: actions/github-script@v5
-        with:
-          script: |
-            const { ALLOWED_ENVIRONMENT_LIST } = process.env
-
-            const target_environment = '${{ steps.get-environment.outputs.target_environment }}'
-
-            if (ALLOWED_ENVIRONMENT_LIST.split(',').includes(target_environment)) {
-                return true
-            }
-
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: "failed :flushed: \nusage: `/deploy [" + ALLOWED_ENVIRONMENT_LIST + "]`"
-            })
-
-            return false
+#      # 指定されたデプロイ先環境が正常な値であることを確認し、不正であればその旨を出力する
+#      - name: Verify target & Notify if invalid
+#        id: verify-target
+#        uses: actions/github-script@v5
+#        with:
+#          script: |
+#            const { ALLOWED_ENVIRONMENT_LIST } = process.env
+#
+#            const target_environment = '${{ steps.get-environment.outputs.target_environment }}'
+#
+#            if (ALLOWED_ENVIRONMENT_LIST.split(',').includes(target_environment)) {
+#                return true
+#            }
+#
+#            github.rest.issues.createComment({
+#              issue_number: context.issue.number,
+#              owner: context.repo.owner,
+#              repo: context.repo.repo,
+#              body: "failed :flushed: \nusage: `/deploy [" + ALLOWED_ENVIRONMENT_LIST + "]`"
+#            })
+#
+#            return false
 #
 #      # 直前の検証で不正であれば、終了する
 #      - name: Stop if invalid
