@@ -93,10 +93,11 @@ jobs:
               pull_number: context.issue.number
             })
             console.log(pull_request)
+            console.log(pull_request.data.title)
 
             return {
               url: pull_request.data.html_url,
-              title: pull_request.data.title.replaceAll('\\', '\\\\').replaceAll('"', '\\"'),
+              title: pull_request.data.title.replace('/\\/g', '\\\\').replace('/"/g', '\\"'),
               user: pull_request.data.user.login,
               branch: pull_request.data.head.ref,
               sha: pull_request.data.head.sha,
