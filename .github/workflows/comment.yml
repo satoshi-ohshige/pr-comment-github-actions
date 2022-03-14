@@ -304,7 +304,7 @@ jobs:
                       "type": "section",
                       "text": {
                         "type": "mrkdwn",
-                        "text": "${{ toJson(fromJSON(steps.target-branch.outputs.result).title) }}\nhttps://github.com"
+                        "text": "${{ format("{0}\n{1}", toJson(fromJSON(steps.target-branch.outputs.result).title), "https://github.com") }}"
                       }
                     }
                   ]
