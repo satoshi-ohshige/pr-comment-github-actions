@@ -47,7 +47,7 @@ jobs:
 
       - name: Get target environment 3
         id: get-environment
-        run: echo "::set-output name=target_environment::$(echo ${{ toJson(github.event.comment.body) }} | cut -d ' ' -f 2 | sed -e 's/\\r//g' -e 's/\\n//g' -e 's/\\t//g')"
+        run: echo "::set-output name=target_environment::$(echo ${{ toJson(github.event.comment.body) }} | cut -d ' ' -f 2 | jq -j)"
 
       - name: Get target environment 3
         run: |
