@@ -45,9 +45,9 @@ jobs:
 #        id: get-environment
 #        run: echo "::set-output name=target_environment::$(echo ${{ format('"{0}"', github.event.comment.body) }} | cut -d ' ' -f 2)"
 
-#      - name: Get target environment 3
-#        id: get-environment
-#        run: echo "::set-output name=target_environment::$(echo ${{ toJson(github.event.comment.body) }} | cut -d ' ' -f 2 | tr -d "\r\n\t")"
+      - name: Get target environment 3
+        id: get-environment
+        run: echo "::set-output name=target_environment::$(echo ${{ toJson(github.event.comment.body) }} | cut -d ' ' -f 2 | sed -e 's/\\r//g' -e 's/\\n//g' -e 's/\\t//g')"
 
       - name: Get target environment 3
         run: |
@@ -81,30 +81,30 @@ jobs:
 #        if: steps.verify-target.outputs.result == 'false'
 #        run: exit 1
 #
-      # デプロイに必要な情報や実行者などをまとめる
-      - name: Fetch target branch
-        id: target-branch
-        uses: actions/github-script@v5
-        with:
-          script: |
-            const pull_request = await github.rest.pulls.get({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: context.issue.number
-            })
-            console.log(pull_request)
-            console.log(pull_request.data.title)
-
-            return {
-              url: pull_request.data.html_url,
-              title: pull_request.data.title.replace(/\\/g, '\\\\').replace(/"/g, '\\"'),
-              user: pull_request.data.user.login,
-              branch: pull_request.data.head.ref,
-              sha: pull_request.data.head.sha,
-              base: pull_request.data.base.ref,
-              merged: pull_request.data.merged,
-              merge_commit_sha: pull_request.data.merge_commit_sha
-            }
+#      # デプロイに必要な情報や実行者などをまとめる
+#      - name: Fetch target branch
+#        id: target-branch
+#        uses: actions/github-script@v5
+#        with:
+#          script: |
+#            const pull_request = await github.rest.pulls.get({
+#              owner: context.repo.owner,
+#              repo: context.repo.repo,
+#              pull_number: context.issue.number
+#            })
+#            console.log(pull_request)
+#            console.log(pull_request.data.title)
+#
+#            return {
+#              url: pull_request.data.html_url,
+#              title: pull_request.data.title.replace(/\\/g, '\\\\').replace(/"/g, '\\"'),
+#              user: pull_request.data.user.login,
+#              branch: pull_request.data.head.ref,
+#              sha: pull_request.data.head.sha,
+#              base: pull_request.data.base.ref,
+#              merged: pull_request.data.merged,
+#              merge_commit_sha: pull_request.data.merge_commit_sha
+#            }
 
 #      - name: checkout repository
 #        uses: actions/checkout@v2
@@ -280,38 +280,38 @@ jobs:
 #              body: "デプロイを開始しました！ :rocket: \n https://ap-northeast-1.console.aws.amazon.com/codesuite/codedeploy/deployments/d-XXXXXXXXX?region=ap-northeast-1"
 #            })
 #
-
-      # https://github.com/slackapi/slack-github-action
-      - name: Notify to Slack
-        uses: slackapi/slack-github-action@v1.18.0
-        env:
-          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_INCOMING_WEBHOOK_URL }}
-        with:
-          payload: |
-            {
-              "attachments": [
-                {
-                  "color": "#5c92f0",
-                  "blocks": [
-                    {
-                      "type": "section",
-                      "text": {
-                        "type": "mrkdwn",
-                        "text": "*hogehoge*\n_${{ github.event.comment.user.login }}_ deploying to *xxx*"
-                      }
-                    },
-                    {
-                      "type": "section",
-                      "text": {
-                        "type": "mrkdwn",
-                        "text": "${{ fromJSON(steps.target-branch.outputs.result).title }}\nhttps://github.com"
-                      }
-                    }
-                  ]
-                }
-              ]
-            }
+#
+#      # https://github.com/slackapi/slack-github-action
+#      - name: Notify to Slack
+#        uses: slackapi/slack-github-action@v1.18.0
+#        env:
+#          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+#          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_INCOMING_WEBHOOK_URL }}
+#        with:
+#          payload: |
+#            {
+#              "attachments": [
+#                {
+#                  "color": "#5c92f0",
+#                  "blocks": [
+#                    {
+#                      "type": "section",
+#                      "text": {
+#                        "type": "mrkdwn",
+#                        "text": "*hogehoge*\n_${{ github.event.comment.user.login }}_ deploying to *xxx*"
+#                      }
+#                    },
+#                    {
+#                      "type": "section",
+#                      "text": {
+#                        "type": "mrkdwn",
+#                        "text": "${{ fromJSON(steps.target-branch.outputs.result).title }}\nhttps://github.com"
+#                      }
+#                    }
+#                  ]
+#                }
+#              ]
+#            }
 
 #      # 何かに失敗した場合はそれがわかるようにリアクションする
 #      - name: Add reaction for failure
