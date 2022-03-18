@@ -78,30 +78,30 @@ jobs:
 #        if: steps.verify-target.outputs.result == 'false'
 #        run: exit 1
 #
-#      # デプロイに必要な情報や実行者などをまとめる
-#      - name: Fetch target branch
-#        id: target-branch
-#        uses: actions/github-script@v5
-#        with:
-#          script: |
-#            const pull_request = await github.rest.pulls.get({
-#              owner: context.repo.owner,
-#              repo: context.repo.repo,
-#              pull_number: context.issue.number
-#            })
-#            console.log(pull_request)
-#            console.log(pull_request.data.title)
-#
-#            return {
-#              url: pull_request.data.html_url,
-#              title: pull_request.data.title.replace(/\\/g, '\\\\').replace(/"/g, '\\"'),
-#              user: pull_request.data.user.login,
-#              branch: pull_request.data.head.ref,
-#              sha: pull_request.data.head.sha,
-#              base: pull_request.data.base.ref,
-#              merged: pull_request.data.merged,
-#              merge_commit_sha: pull_request.data.merge_commit_sha
-#            }
+      # デプロイに必要な情報や実行者などをまとめる
+      - name: Fetch target branch
+        id: target-branch
+        uses: actions/github-script@v5
+        with:
+          script: |
+            const pull_request = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            })
+            console.log(pull_request)
+            console.log(pull_request.data.title)
+
+            return {
+              url: pull_request.data.html_url,
+              title: pull_request.data.title.replace(/\\/g, '\\\\').replace(/"/g, '\\"'),
+              user: pull_request.data.user.login,
+              branch: pull_request.data.head.ref,
+              sha: pull_request.data.head.sha,
+              base: pull_request.data.base.ref,
+              merged: pull_request.data.merged,
+              merge_commit_sha: pull_request.data.merge_commit_sha
+            }
 
 #      - name: checkout repository
 #        uses: actions/checkout@v2
