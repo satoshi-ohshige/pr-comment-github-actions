@@ -36,19 +36,19 @@ jobs:
 #              content: 'eyes'
 #            })
 #
-      # "/deploy prod" における prod などのデプロイ先環境を取り出す
-      - name: Get target environment
-        run: echo "::set-output name=target_environment::$(echo -n ${{ toJson(github.event.comment.body) }} | cut -d ' ' -f 2)"
+#      # "/deploy prod" における prod などのデプロイ先環境を取り出す
+#      - name: Get target environment
+#        run: echo "::set-output name=target_environment::$(echo -n ${{ toJson(github.event.comment.body) }} | cut -d ' ' -f 2)"
 
 #      - name: Get target environment 2
 #        run: echo "::set-output name=target_environment::$(echo ${{ format('"{0}"', github.event.comment.body) }} | cut -d ' ' -f 2)"
 
-      - name: Get target environment 3
-        run: echo "::set-output name=target_environment::$(echo ${{ toJson(github.event.comment.body) }} | cut -d ' ' -f 2 | jq -j)"
-
-      - name: Get target environment 3
-        run: |
-          echo ${{ toJson(github.event.comment.body) }} | cut -d ' ' -f 2 | sed -e 's/\\r//g' -e 's/\\n//g' -e 's/\\t//g'
+#      - name: Get target environment 3
+#        run: echo "::set-output name=target_environment::$(echo ${{ toJson(github.event.comment.body) }} | cut -d ' ' -f 2 | jq -j)"
+#
+#      - name: Get target environment 3
+#        run: |
+#          echo ${{ toJson(github.event.comment.body) }} | cut -d ' ' -f 2 | sed -e 's/\\r//g' -e 's/\\n//g' -e 's/\\t//g'
 
 #      # 指定されたデプロイ先環境が正常な値であることを確認し、不正であればその旨を出力する
 #      - name: Verify target & Notify if invalid
@@ -278,37 +278,37 @@ jobs:
 #            })
 #
 #
-#      # https://github.com/slackapi/slack-github-action
-#      - name: Notify to Slack
-#        uses: slackapi/slack-github-action@v1.18.0
-#        env:
-#          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
-#          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_INCOMING_WEBHOOK_URL }}
-#        with:
-#          payload: |
-#            {
-#              "attachments": [
-#                {
-#                  "color": "#5c92f0",
-#                  "blocks": [
-#                    {
-#                      "type": "section",
-#                      "text": {
-#                        "type": "mrkdwn",
-#                        "text": "*hogehoge*\n_${{ github.event.comment.user.login }}_ deploying to *xxx*"
-#                      }
-#                    },
-#                    {
-#                      "type": "section",
-#                      "text": {
-#                        "type": "mrkdwn",
-#                        "text": "${{ fromJSON(steps.target-branch.outputs.result).title }}\nhttps://github.com"
-#                      }
-#                    }
-#                  ]
-#                }
-#              ]
-#            }
+      # https://github.com/slackapi/slack-github-action
+      - name: Notify to Slack
+        uses: slackapi/slack-github-action@v1.18.0
+        env:
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_INCOMING_WEBHOOK_URL }}
+        with:
+          payload: |
+            {
+              "attachments": [
+                {
+                  "color": "#5c92f0",
+                  "blocks": [
+                    {
+                      "type": "section",
+                      "text": {
+                        "type": "mrkdwn",
+                        "text": "*hogehoge*\n_${{ github.event.comment.user.login }}_ deploying to *xxx*"
+                      }
+                    },
+                    {
+                      "type": "section",
+                      "text": {
+                        "type": "mrkdwn",
+                        "text": "${{ fromJSON(steps.target-branch.outputs.result).title }}\nhttps://github.com"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
 
 #      # 何かに失敗した場合はそれがわかるようにリアクションする
 #      - name: Add reaction for failure
