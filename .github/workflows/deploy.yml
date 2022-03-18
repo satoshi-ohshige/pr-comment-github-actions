@@ -1,0 +1,230 @@
+name: DEPLOY
+
+on:
+  issue_comment:
+    types: [created]
+
+env:
+  DEFAULT_BRANCH: main
+  ALLOWED_ENVIRONMENT_LIST: test,prod
+  PROD_ENVIRONMENT_LIST: prod
+  AWS_IAM_ROLE_DEV: arn:aws:iam::
+  AWS_IAM_ROLE_PROD: arn:aws:iam::
+  CODEDEPLOY_APPLICATION_NAME: application-name
+
+permissions: write-all
+
+jobs:
+  deploy:
+    # PRコメントであり且つ /deploy で始まるときのみ動作させる
+    if: github.event.issue.pull_request && startsWith(github.event.comment.body, '/deploy')
+    runs-on: ubuntu-latest
+
+    steps:
+      # 実行を追えるようにトリガーとなったコメントを出力する
+      - name: Print trigger comment
+        run: echo "${{ github.event.comment.html_url }}"
+
+      # 動作していることを表すためにまずリアクションする
+      - name: Add reaction for start
+        uses: actions/github-script@v5
+        with:
+          script: |
+            github.rest.reactions.createForIssueComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: context.payload.comment.id,
+              content: 'eyes'
+            })
+
+      # "/deploy prod" における prod などのデプロイ先環境を取り出す
+      - name: Get target environment
+        id: get-environment
+        run: echo "::set-output name=target_environment::$(echo ${{ toJson(github.event.comment.body) }} | cut -d ' ' -f 2 | sed -e 's/\\r//g' -e 's/\\n//g' -e 's/\\t//g')"
+
+      # 指定されたデプロイ先環境が正常な値であることを確認し、不正であればその旨を出力する
+      - name: Verify target & Notify if invalid
+        id: verify-target
+        uses: actions/github-script@v5
+        with:
+          script: |
+            const { ALLOWED_ENVIRONMENT_LIST } = process.env
+
+            const target_environment = '${{ steps.get-environment.outputs.target_environment }}'
+
+            if (ALLOWED_ENVIRONMENT_LIST.split(',').includes(target_environment)) {
+                return true
+            }
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: "failed :flushed: \nusage: `/deploy [" + ALLOWED_ENVIRONMENT_LIST + "]`"
+            })
+
+            return false
+
+      # 直前の検証で不正であれば、終了する
+      - name: Stop if invalid
+        if: steps.verify-target.outputs.result == 'false'
+        run: exit 1
+
+      # デプロイに必要な情報や実行者などをまとめる
+      - name: Fetch target branch
+        id: target-branch
+        uses: actions/github-script@v5
+        with:
+          script: |
+            const pull_request = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            })
+
+            return {
+              url: pull_request.data.html_url,
+              title: pull_request.data.title.replace(/\\/g, '\\\\').replace(/"/g, '\\"'),
+              branch: pull_request.data.head.ref,
+              sha: pull_request.data.head.sha,
+              base: pull_request.data.base.ref,
+              merged: pull_request.data.merged
+            }
+
+      # 本番環境へのデプロイであればマージ先がデフォルトブランチであり且つPRがマージ済みであることを確認し、満たしていなければその旨を出力する
+      - name: Verify deployment production & Notify if invalid
+        id: verify-deployment-production
+        if: steps.get-environment.outputs.target_environment == 'prod'
+        uses: actions/github-script@v5
+        with:
+          script: |
+            const { DEFAULT_BRANCH } = process.env
+
+            const base_branch = '${{ fromJson(steps.target-branch.outputs.result).base }}'
+            const merged = '${{ fromJson(steps.target-branch.outputs.result).merged }}'
+
+            if (DEFAULT_BRANCH == base_branch && merged == 'true') {
+                return true
+            }
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: "failed :cold_sweat: \n本番環境へデプロイするためには、マージ先ブランチが `" + DEFAULT_BRANCH + "` であり、マージ済みでないといけません"
+            })
+
+            return false
+
+      # 直前の検証で不正であれば、終了する
+      - name: Stop if invalid
+        if: steps.verify-deployment-production.outputs.result == 'false'
+        run: exit 1
+
+      # デプロイ先のアカウントとデプロイするコミットSHAを用意する
+      - name: Prepare account and commit sha
+        id: prepare-deployment-info
+        uses: actions/github-script@v5
+        with:
+          script: |
+            const { AWS_IAM_ROLE_DEV, AWS_IAM_ROLE_PROD, PROD_ENVIRONMENT_LIST } = process.env
+
+            const target_environment = '${{ steps.get-environment.outputs.target_environment }}'
+
+            let aws_iam_role = AWS_IAM_ROLE_DEV
+            if (PROD_ENVIRONMENT_LIST.split(',').includes(target_environment)) {
+              aws_iam_role = AWS_IAM_ROLE_PROD
+            }
+
+            let commit_sha = '${{ fromJSON(steps.target-branch.outputs.result).sha }}'
+            if (target_environment == 'prod') {
+              const commit_list = await github.rest.repos.listCommits({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                per_page: 1
+              })
+
+              commit_sha = commit_list.data[0].sha
+            }
+
+            return {
+              aws_iam_role: aws_iam_role,
+              commit_sha: commit_sha
+            }
+
+      # OpenID Connect 経由で AWS の認証を行う
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ fromJSON(steps.prepare-deployment-info.outputs.result).aws_iam_role }}
+          aws-region: ap-northeast-1
+
+      # 誰がどこに何をデプロイするかSlackに通知
+      - name: Notify to Slack
+        uses: slackapi/slack-github-action@v1.18.0
+        env:
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_INCOMING_WEBHOOK_URL }}
+        with:
+          payload: |
+            {
+              "attachments": [
+                {
+                  "color": "#5c92f0",
+                  "blocks": [
+                    {
+                      "type": "section",
+                      "text": {
+                        "type": "mrkdwn",
+                        "text": "*${{ env.CODEDEPLOY_APPLICATION_NAME }}*\n_${{ github.event.comment.user.login }}_ deploying to *${{ steps.get-environment.outputs.target_environment }}*"
+                      }
+                    },
+                    {
+                      "type": "section",
+                      "text": {
+                        "type": "mrkdwn",
+                        "text": "${{ fromJSON(steps.target-branch.outputs.result).title }}\n${{ fromJSON(steps.target-branch.outputs.result).url }}"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+
+      # AWS CLI で CodeDeploy を実行してデプロイ開始
+      - name: Start Deployment
+        id: codedeploy
+        run: |
+          aws deploy create-deployment \
+            --application-name ${{ env.CODEDEPLOY_APPLICATION_NAME }} \
+            --deployment-group-name ${{ steps.get-environment.outputs.target_environment }} \
+            --github-location repository=${{ github.repository }},commitId=${{ fromJSON(steps.prepare-deployment-info.outputs.result).commit_sha }} \
+            --description "${{ fromJSON(steps.target-branch.outputs.result).url }} by ${{ github.event.comment.user.login }}" \
+            --output text \
+          > deployment_id
+          echo "::set-output name=deployment_id::$(cat deployment_id)"
+
+      # デプロイ開始完了とAWSへのリンクを出力する
+      - name: Finished
+        uses: actions/github-script@v5
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: "デプロイを開始しました！ :rocket: \n https://ap-northeast-1.console.aws.amazon.com/codesuite/codedeploy/deployments/${{ steps.codedeploy.outputs.deployment_id }}?region=ap-northeast-1"
+            })
+
+      # 何かに失敗した場合はそれがわかるようにリアクションする
+      - name: Add reaction for failure
+        if: failure()
+        uses: actions/github-script@v5
+        with:
+          script: |
+            github.rest.reactions.createForIssueComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: context.payload.comment.id,
+              content: 'confused'
+            })
